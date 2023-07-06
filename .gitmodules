@@ -1,0 +1,3 @@
+[submodule "Log"]
+	path = third_party/
+	url = https://github.com/WDXC/Log_Design.git
