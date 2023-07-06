@@ -1,3 +1,6 @@
 [submodule "third_party/Log_Design"]
 	path = third_party/Log_Design
 	url = https://ghproxy.com/https://github.com/WDXC/Log_Design.git
+[submodule "third_party/Encfs"]
+	path = third_party/Encfs
+	url = https://ghproxy.com/https://github.com/WDXC/Encfs.git
