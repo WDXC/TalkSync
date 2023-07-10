@@ -26,10 +26,11 @@ find_library(LIBEVENT_LIBRARIES
 include_directories(${LIBEVENT_ROOT}/include)
 
 # 编译Log_Design
+message(STATUS "compile Log_Design ")
 set(LOG_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/Log_Design)
 # 添加libevent库
 find_library(LOGDESIGN_LIBRARIES
-    NAMES log
+    NAMES Log
     PATHS ${LOG_ROOT}/lib
 )
 # 添加libevent头文件路径
