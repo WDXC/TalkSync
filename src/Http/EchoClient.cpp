@@ -1,6 +1,8 @@
 #include "EchoClient.h"
 #include <event2/util.h>
 #include <iostream>
+#include <chrono>
+#include <thread>
 #include <string.h>
 #include <string>
 #include <unistd.h>
@@ -85,8 +87,9 @@ void EchoClient::Start() {
   }
 
   SendMessage("Hello");
-  event_base_loop(base_, EVLOOP_ONCE);
-
+  if (!event_base_dispatch(base_)) {
+      return;
+  }
 }
 
 void EchoClient::SendMessage(std::string msg) {
@@ -97,6 +100,7 @@ void EchoClient::SendMessage(std::string msg) {
 
 void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   struct evbuffer *in = bufferevent_get_input(bev);
+  event_base* tmp_base = bufferevent_get_base(bev);
   size_t size = evbuffer_get_length(in);
   char* message = new char[size + 1];
   evbuffer_copyout(in, message, size);
@@ -104,6 +108,9 @@ void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   std::cout << "The back message is : " << message << std::endl;
   evbuffer_drain(in, size);
   delete[] message;
+  event_base_loopbreak(tmp_base);
+  bufferevent_free(bev);
+  bev = NULL;
 }
 
 void EchoClient::event_cb(struct bufferevent *bev, short events, void *ctx) {
