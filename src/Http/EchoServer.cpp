@@ -7,14 +7,12 @@ EchoServer::EchoServer() {}
 EchoServer::~EchoServer() {}
 
 void EchoServer::Start() {
-  struct event_base *base;
-  struct evconnlistener *listener;
   struct sockaddr_in sin;
 
   int port = 9876;
 
-  base = event_base_new();
-  if (!base) {
+  base_ = event_base_new();
+  if (!base_) {
     puts("Couldn't open event base");
     return;
   }
@@ -29,16 +27,25 @@ void EchoServer::Start() {
   /* Listen on the given port. */
   sin.sin_port = htons(port);
 
-  listener = evconnlistener_new_bind(base, accept_conn_cb, NULL,
-                                     LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
-                                     -1, (struct sockaddr *)&sin, sizeof(sin));
-  if (!listener) {
+  listener_ = evconnlistener_new_bind(base_, accept_conn_cb, NULL,
+                                      LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
+                                      -1, (struct sockaddr *)&sin, sizeof(sin));
+  if (!listener_) {
     perror("Couldn't create listener");
     return;
   }
-  evconnlistener_set_error_cb(listener, accept_error_cb);
+  evconnlistener_set_error_cb(listener_, accept_error_cb);
 
-  event_base_dispatch(base);
+  event_base_dispatch(base_);
+}
+
+void EchoServer::Stop() {
+  if (listener_)
+    evconnlistener_free(listener_);
+  if (base_) {
+      event_base_loopbreak(base_);
+      event_base_free(base_);
+  }
 }
 
 void EchoServer::echo_read_cb(struct bufferevent *bev, void *ctx) {
@@ -50,7 +57,8 @@ void EchoServer::echo_read_cb(struct bufferevent *bev, void *ctx) {
   evbuffer_add_buffer(output, input);
 }
 
-void EchoServer::echo_event_cb(struct bufferevent *bev, short events, void *ctx) {
+void EchoServer::echo_event_cb(struct bufferevent *bev, short events,
+                               void *ctx) {
   if (events & BEV_EVENT_ERROR)
     perror("Error from bufferevent");
   if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
@@ -58,8 +66,9 @@ void EchoServer::echo_event_cb(struct bufferevent *bev, short events, void *ctx)
   }
 }
 
-void EchoServer::accept_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
-                    struct sockaddr *address, int socklen, void *ctx) {
+void EchoServer::accept_conn_cb(struct evconnlistener *listener,
+                                evutil_socket_t fd, struct sockaddr *address,
+                                int socklen, void *ctx) {
   /* We got a new connection! Set up a bufferevent for it. */
   struct event_base *base = evconnlistener_get_base(listener);
   struct bufferevent *bev =

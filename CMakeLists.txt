@@ -71,23 +71,11 @@ file(GLOB_RECURSE MAIN "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
 add_library(${TALKSYNC} SHARED ${MAIN})
 
-add_executable(${TEST_CLIENT}  ${MAIN}
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Client.cpp)
-
-
 add_executable(${TEST_SERVER} ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Server.cpp)
 
 
 # linker
 target_link_libraries(${TEST_SERVER} 
-                      PRIVATE ${TALKSYNC}
-                      ${LIBEVENT_LIBRARIES}
-                      logbase
-                      gmock
-                      gtest
-                      encfs
-)
-target_link_libraries(${TEST_CLIENT} 
                       PRIVATE ${TALKSYNC}
                       ${LIBEVENT_LIBRARIES}
                       logbase

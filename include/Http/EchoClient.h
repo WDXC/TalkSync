@@ -12,6 +12,7 @@ public:
   ~EchoClient();
   void Start();
   void SendMessage(std::string msg);
+  std::string GetMsg();
 
 private:
   static void read_cb(struct bufferevent *bev, void *ctx);
@@ -20,6 +21,7 @@ private:
 private:
   event_base *base_;
   bufferevent *bev_;
+  static std::string msg;
 };
 
 #endif

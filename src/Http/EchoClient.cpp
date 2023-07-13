@@ -13,6 +13,8 @@
 #define CHECK_FMT(a, b)
 #endif
 
+std::string EchoClient::msg = "";
+
 static void error(const char *fmt, ...) CHECK_FMT(1, 2);
 static void error(const char *fmt, ...)
 {
@@ -98,6 +100,10 @@ void EchoClient::SendMessage(std::string msg) {
     evbuffer_write(out, bufferevent_getfd(bev_));
 }
 
+std::string EchoClient::GetMsg() {
+    return msg;
+}
+
 void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   struct evbuffer *in = bufferevent_get_input(bev);
   event_base* tmp_base = bufferevent_get_base(bev);
@@ -105,7 +111,7 @@ void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   char* message = new char[size + 1];
   evbuffer_copyout(in, message, size);
   message[size] = '\0';
-  std::cout << "The back message is : " << message << std::endl;
+  msg += message;
   evbuffer_drain(in, size);
   delete[] message;
   event_base_loopbreak(tmp_base);
