@@ -82,4 +82,5 @@ target_link_libraries(${TEST_SERVER}
                       gmock
                       gtest
                       encfs
+                      pthread
 )

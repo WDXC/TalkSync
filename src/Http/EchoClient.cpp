@@ -28,6 +28,22 @@ EchoClient::EchoClient() {}
 
 EchoClient::~EchoClient() {}
 
+void EchoClient::Disconnect() {
+    if (bev_) {
+        bufferevent_disable(bev_, EV_READ | EV_WRITE);  // 先禁用读写事件
+        bufferevent_setcb(bev_, nullptr, nullptr, nullptr, nullptr);  // 清除回调函数
+        event_base *base = bufferevent_get_base(bev_);  // 获取所属的 event_base
+        bufferevent_setfd(bev_, -1);  // 从 bufferevent 中移除底层文件描述符
+        bev_ = nullptr;
+        event_base_loopbreak(base);  // 停止事件循环
+    }
+    if (base_) {
+        event_base_free(base_);
+        base_ = nullptr;
+    }
+}
+
+
 ev_socklen_t make_address(struct sockaddr_storage *ss, const char *address,
                           ev_uint16_t port) {
   struct evutil_addrinfo *ai = NULL;
@@ -92,6 +108,8 @@ void EchoClient::Start() {
   if (!event_base_dispatch(base_)) {
       return;
   }
+  event_base_loopbreak(base_);
+  event_base_free(base_);
 }
 
 void EchoClient::SendMessage(std::string msg) {
@@ -111,9 +129,11 @@ void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   char* message = new char[size + 1];
   evbuffer_copyout(in, message, size);
   message[size] = '\0';
+  std::cout << "message : " << message << std::endl;
   msg += message;
   evbuffer_drain(in, size);
   delete[] message;
+  bufferevent_disable(bev, EV_READ);
   event_base_loopbreak(tmp_base);
   bufferevent_free(bev);
   bev = NULL;

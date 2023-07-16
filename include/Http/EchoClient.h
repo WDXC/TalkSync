@@ -13,6 +13,7 @@ public:
   void Start();
   void SendMessage(std::string msg);
   std::string GetMsg();
+  void Disconnect();
 
 private:
   static void read_cb(struct bufferevent *bev, void *ctx);

@@ -1,37 +1,35 @@
 #include "EchoClient.h"
-#include <thread>
+#include <pthread.h>
 #include "EchoServer.h"
 #include <gtest/gtest.h>
 
 using namespace testing;
 
+void* fun(void* arg) {
+    EchoServer server;
+    server.Start();
+    return NULL;
+}
 
 TEST(EchoServerTest, EchoFunctionality) {
-    int port = 8888;
-    EchoServer server;
 
     // 启动服务器
-    std::thread serverThread([&server]() {
-        server.Start();
-    });
-
-    // 等待服务器启动完成
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::cout << "start server\n";
+    pthread_t serverThread;
+    int res = pthread_create(&serverThread, NULL, fun, NULL);
+        if (res != 0) {
+        printf("线程创建失败");
+    }
 
     // 执行后续代码
     EchoClient cli;
     cli.Start();
 
-    std::string res = cli.GetMsg();
+    std::string tmp = cli.GetMsg();
 
-    EXPECT_EQ("Hello", res);
+    EXPECT_EQ("Hello", tmp);
 
-    // 停止服务器
-    server.Stop();
-
-    // 等待服务器线程退出
-    serverThread.join();
-
+//    pthread_join(serverThread, NULL);
 }
 
 

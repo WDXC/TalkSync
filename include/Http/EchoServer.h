@@ -26,6 +26,7 @@ private:
 private:
   event_base* base_;
   evconnlistener* listener_;
+  static bufferevent* bev_;
 };
 
 #endif
