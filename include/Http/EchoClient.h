@@ -14,6 +14,7 @@ public:
   void SendMessage(std::string msg);
   std::string GetMsg();
   void Disconnect();
+  void RunLoop();
 
 private:
   static void read_cb(struct bufferevent *bev, void *ctx);

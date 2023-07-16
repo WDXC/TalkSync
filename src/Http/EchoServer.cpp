@@ -1,15 +1,24 @@
 #include "EchoServer.h"
 #include <arpa/inet.h>
-#include <sys/time.h>
 #include <event2/buffer.h>
 #include <iostream>
 #include <string.h>
+#include <sys/time.h>
 
-bufferevent* EchoServer::bev_;
+bufferevent *EchoServer::bev_;
 
 EchoServer::EchoServer() {}
 
-EchoServer::~EchoServer() {}
+EchoServer::~EchoServer() {
+  listener_ = NULL;
+  base_ = NULL;
+  bev_ = NULL;
+}
+
+void EchoServer::RunLoop() {
+  event_base_loop(base_, EVLOOP_NONBLOCK);
+  std::cout << "loop" << std::endl;
+}
 
 void EchoServer::Start() {
   struct sockaddr_in sin;
@@ -40,10 +49,6 @@ void EchoServer::Start() {
     return;
   }
   evconnlistener_set_error_cb(listener_, accept_error_cb);
-
-  event_base_dispatch(base_);
-  event_base_loopexit(base_, NULL);
-  event_base_free(base_);
 }
 
 void EchoServer::Stop() {
@@ -52,7 +57,10 @@ void EchoServer::Stop() {
     evconnlistener_free(listener_);
   if (base_) {
     event_base_loopexit(base_, NULL);
-    bufferevent_free(bev_);
+    event_base_free(base_);
+    if (bev_) {
+      bufferevent_free(bev_);
+    }
     bev_ = NULL;
   }
   std::cout << "executable done" << std::endl;
@@ -63,9 +71,8 @@ void EchoServer::echo_read_cb(struct bufferevent *bev, void *ctx) {
   struct evbuffer *input = bufferevent_get_input(bev);
   struct evbuffer *output = bufferevent_get_output(bev);
   size_t size = evbuffer_get_length(input);
-  char* message = new char[size+1];
-  evbuffer_copyout(input, message, size+1);
-  std::cout << "server: " << message << std::endl;
+  char *message = new char[size + 1];
+  evbuffer_copyout(input, message, size + 1);
 
   /* Copy all the data from the input buffer to the output buffer. */
   evbuffer_add_buffer(output, input);
@@ -85,8 +92,7 @@ void EchoServer::accept_conn_cb(struct evconnlistener *listener,
                                 int socklen, void *ctx) {
   /* We got a new connection! Set up a bufferevent for it. */
   struct event_base *base = evconnlistener_get_base(listener);
-  bev_ =
-      bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+  bev_ = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
 
   bufferevent_setcb(bev_, echo_read_cb, NULL, echo_event_cb, NULL);
 

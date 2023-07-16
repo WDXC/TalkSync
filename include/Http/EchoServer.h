@@ -12,6 +12,7 @@ public:
   ~EchoServer();
   void Start();
   void Stop();
+  void RunLoop();
 
 
 private:

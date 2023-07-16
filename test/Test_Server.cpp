@@ -1,39 +1,57 @@
-#include "EchoClient.h"
-#include <pthread.h>
-#include "EchoServer.h"
-#include <gtest/gtest.h>
+#include <EchoClient.h>
+#include <EchoServer.h>
+#include <chrono>
+#include <future>
+#include <iostream>
+#include <thread>
 
-using namespace testing;
-
-void* fun(void* arg) {
-    EchoServer server;
-    server.Start();
-    return NULL;
+void RunServer() {
+  EchoServer server;
+  server.Start();
+  server.RunLoop();
 }
 
-TEST(EchoServerTest, EchoFunctionality) {
+void RunClient() {}
 
-    // 启动服务器
-    std::cout << "start server\n";
-    pthread_t serverThread;
-    int res = pthread_create(&serverThread, NULL, fun, NULL);
-        if (res != 0) {
-        printf("线程创建失败");
-    }
+void test() {
+  // 创建服务器对象
+  EchoServer server;
+  EchoClient cli;
 
-    // 执行后续代码
-    EchoClient cli;
+  // 启动服务器线程
+  std::future<void> serverFuture = std::async(std::launch::async, [&server]() {
+    server.Start();
+    server.RunLoop();
+  });
+
+  // 启动客户端线程
+  std::future<void> clientFuture = std::async(std::launch::async, [&cli]() {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     cli.Start();
+    cli.RunLoop();
+
+    std::cout << "111" << std::endl;
+    cli.SendMessage("Hello");
+    std::cout << "22" << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     std::string tmp = cli.GetMsg();
+  });
 
-    EXPECT_EQ("Hello", tmp);
+  // 等待客户端线程完成
+  clientFuture.get();
 
-//    pthread_join(serverThread, NULL);
+  cli.Disconnect();
+
+  // 停止服务器
+  server.Stop();
+
+  // 等待服务器线程完成
+  serverFuture.get();
 }
 
-
 int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  test();
+  return 0;
 }

@@ -26,7 +26,10 @@ static void error(const char *fmt, ...)
 
 EchoClient::EchoClient() {}
 
-EchoClient::~EchoClient() {}
+EchoClient::~EchoClient() {
+    bev_ = NULL;
+    base_ = NULL;
+}
 
 void EchoClient::Disconnect() {
     if (bev_) {
@@ -34,6 +37,7 @@ void EchoClient::Disconnect() {
         bufferevent_setcb(bev_, nullptr, nullptr, nullptr, nullptr);  // 清除回调函数
         event_base *base = bufferevent_get_base(bev_);  // 获取所属的 event_base
         bufferevent_setfd(bev_, -1);  // 从 bufferevent 中移除底层文件描述符
+        bufferevent_free(bev_);
         bev_ = nullptr;
         event_base_loopbreak(base);  // 停止事件循环
     }
@@ -43,6 +47,11 @@ void EchoClient::Disconnect() {
     }
 }
 
+
+void EchoClient::RunLoop() {
+  event_base_loop(base_, EVLOOP_NONBLOCK);
+  std::cout << "2 loop" << std::endl;
+}
 
 ev_socklen_t make_address(struct sockaddr_storage *ss, const char *address,
                           ev_uint16_t port) {
@@ -104,15 +113,10 @@ void EchoClient::Start() {
     return;
   }
 
-  SendMessage("Hello");
-  if (!event_base_dispatch(base_)) {
-      return;
-  }
-  event_base_loopbreak(base_);
-  event_base_free(base_);
 }
 
 void EchoClient::SendMessage(std::string msg) {
+    std::cout << "heere" << std::endl;
     struct evbuffer *out = bufferevent_get_output(bev_);
     evbuffer_add(out, msg.c_str(), msg.size());
     evbuffer_write(out, bufferevent_getfd(bev_));
@@ -133,10 +137,18 @@ void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
   msg += message;
   evbuffer_drain(in, size);
   delete[] message;
-  bufferevent_disable(bev, EV_READ);
-  event_base_loopbreak(tmp_base);
-  bufferevent_free(bev);
-  bev = NULL;
+    if (bev) {
+        bufferevent_disable(bev, EV_READ | EV_WRITE);  // 先禁用读写事件
+        bufferevent_setcb(bev, nullptr, nullptr, nullptr, nullptr);  // 清除回调函数
+        event_base *base = bufferevent_get_base(bev);  // 获取所属的 event_base
+        bufferevent_setfd(bev, -1);  // 从 bufferevent 中移除底层文件描述符
+        bev = nullptr;
+        event_base_loopbreak(base);  // 停止事件循环
+    }
+    if (tmp_base) {
+        event_base_free(tmp_base);
+        tmp_base= nullptr;
+    }
 }
 
 void EchoClient::event_cb(struct bufferevent *bev, short events, void *ctx) {
