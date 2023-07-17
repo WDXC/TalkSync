@@ -12,6 +12,7 @@ public:
   ~EchoServer();
   void Start();
   void Stop();
+  void RunLoop();
 
 
 private:
@@ -22,9 +23,11 @@ private:
 
   static void echo_read_cb(struct bufferevent *bev, void *ctx);
   static void echo_event_cb(struct bufferevent *bev, short events, void *ctx);
+  static void cb(int sock, short what, void *arg);
 
 private:
-  event_base* base_;
+  static bufferevent* bev_;
+  static event_base* base_;
   evconnlistener* listener_;
 };
 

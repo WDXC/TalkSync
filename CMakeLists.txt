@@ -32,6 +32,7 @@ SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 find_library(LIBEVENT_LIBRARIES
     NAMES event
     NAMES event_core
+    NAMES event_pthreads
     PATHS ${LIBEVENT_ROOT}/lib
 )
 
@@ -71,15 +72,17 @@ file(GLOB_RECURSE MAIN "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
 add_library(${TALKSYNC} SHARED ${MAIN})
 
-add_executable(${TEST_SERVER} ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Server.cpp)
+add_executable(${TEST_SERVER} ${MAIN} ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Server.cpp)
 
 
 # linker
 target_link_libraries(${TEST_SERVER} 
                       PRIVATE ${TALKSYNC}
                       ${LIBEVENT_LIBRARIES}
+                      event_pthreads
                       logbase
                       gmock
                       gtest
                       encfs
+                      pthread
 )

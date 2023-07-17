@@ -13,15 +13,19 @@ public:
   void Start();
   void SendMessage(std::string msg);
   std::string GetMsg();
+  void Disconnect();
+  void RunLoop();
 
 private:
   static void read_cb(struct bufferevent *bev, void *ctx);
   static void event_cb(struct bufferevent *bev, short events, void *ctx);
+  static void send_cb(int fd, short events, void* arg);
 
 private:
   event_base *base_;
-  bufferevent *bev_;
+  static bufferevent *bev_;
   static std::string msg;
+  static struct event* timerEvent_;
 };
 
 #endif
