@@ -26,9 +26,11 @@ private:
   static void cb(int sock, short what, void *arg);
 
 private:
+  static int flag_;
   static bufferevent* bev_;
   static event_base* base_;
   evconnlistener* listener_;
+  static event* watchdog_event_;
 };
 
 #endif

@@ -22,7 +22,7 @@ private:
   static void send_cb(int fd, short events, void* arg);
 
 private:
-  event_base *base_;
+  static event_base *base_;
   static bufferevent *bev_;
   static std::string msg;
   static struct event* timerEvent_;

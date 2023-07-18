@@ -1,50 +1,28 @@
 #include "EchoClient.h"
 #include "EchoServer.h"
 #include <chrono>
-#include <condition_variable>
 #include <iostream>
-#include <mutex>
 #include <thread>
+#include <atomic>
 
-std::mutex mutex;
-std::condition_variable cv;
-bool serverStarted = false;
-bool clientEnd = false;
-bool allend = false;
+std::atomic<bool> ServerStarted(false);
+std::atomic<bool> clientEnd(false);
+std::atomic<bool> allend(false);
 
 EchoClient cli;
 EchoServer server;
 
-void *fun(void *arg) {
+void fun_server() {
   // 进行服务器的初始化和运行
   server.Start();
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    serverStarted = true;
-    cv.notify_all(); // 通知等待的线程，服务器已启动
-  }
+  ServerStarted.store(true);
   server.RunLoop();
-
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    cv.wait(lock, [] { return clientEnd; });
-    std::cout << "recv end" << std::endl;
-  }
-
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    allend = true;
-    cv.notify_all(); // 通知等待的线程，服务器已结束
-  }
-
-  return NULL;
+  clientEnd.store(true);
 }
 
-void *fun_cli(void *arg) {
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    // 等待服务器线程启动
-    cv.wait(lock, [] { return serverStarted; });
+void fun_client() {
+  while (!ServerStarted.load()) {
+    std::this_thread::yield();
   }
 
   // 执行客户端相关操作
@@ -53,45 +31,25 @@ void *fun_cli(void *arg) {
 
   std::string tmp = cli.GetMsg();
 
-
   server.Stop();
-  std::cout << "stop" << std::endl;
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    clientEnd = true;
-    cv.notify_all(); // 通知等待的线程，客户端已结束
-  }
-
-  return NULL;
+  clientEnd.store(true);
 }
 
 void test() {
   // 启动服务器线程
-  pthread_t serverThread;
-  int res = pthread_create(&serverThread, NULL, fun, NULL);
-  if (res != 0) {
-    printf("服务器线程创建失败\n");
-  }
+  std::thread serverThread(fun_server);
 
   // 启动客户端线程
-  pthread_t cli_thread;
-  res = pthread_create(&cli_thread, NULL, fun_cli, NULL);
-  if (res != 0) {
-    printf("客户端线程创建失败\n");
-  }
+  std::thread cli_thread(fun_client);
 
-  {
-    std::unique_lock<std::mutex> lock(mutex);
-    // 等待服务器线程结束
-    cv.wait(lock, [] { return allend; });
-  }
+  serverThread.join();
+  cli_thread.join();
+
+  allend.store(true);
   std::cout << "main thread executable" << std::endl;
-
-  pthread_join(cli_thread, NULL);
-//  pthread_join(serverThread, NULL);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   test();
   return 0;
 }

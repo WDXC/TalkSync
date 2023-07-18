@@ -17,6 +17,7 @@
 struct event *EchoClient::timerEvent_;
 
 struct bufferevent *EchoClient::bev_;
+struct event_base* EchoClient::base_;
 
 void EchoClient::send_cb(int fd, short events, void *arg) {
   std::cout << "Sending message..." << std::endl;
@@ -137,6 +138,14 @@ void EchoClient::Start() {
     error("Connection failed\n");
     return;
   }
+    // 注册一个在程序退出时释放 event_base 内存的函数
+  std::atexit([]() {
+    if (base_) {
+      event_base_loopbreak(base_); // 停止事件循环
+      event_base_free(base_); // 释放 event_base 的内存
+    }
+  });
+
 }
 
 void EchoClient::SendMessage(std::string msg) {
@@ -149,16 +158,7 @@ void EchoClient::SendMessage(std::string msg) {
 std::string EchoClient::GetMsg() { return msg; }
 
 void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
-  struct evbuffer *in = bufferevent_get_input(bev);
-  event_base *tmp_base = bufferevent_get_base(bev);
-  size_t size = evbuffer_get_length(in);
-  char *message = new char[size + 1];
-  evbuffer_copyout(in, message, size);
-  message[size] = '\0';
-  std::cout << "message : " << message << std::endl;
-  msg += message;
-  evbuffer_drain(in, size);
-  delete message;
+  event_base* tmp_base = bufferevent_get_base(bev);
   if (bev) {
     event_free(timerEvent_);
     bufferevent_disable(bev, EV_READ | EV_WRITE); // 先禁用读写事件
@@ -171,7 +171,6 @@ void EchoClient::read_cb(struct bufferevent *bev, void *arg) {
     event_base_loopexit(tmp_base, NULL); 
   }
   if (tmp_base) {
-    event_base_free(tmp_base);
     tmp_base = nullptr;
   }
 }
