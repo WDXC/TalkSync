@@ -1,101 +1,78 @@
-#include "EchoServer.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <event2/buffer.h>
-#include <atomic>
-#include <thread>
+#include "EchoServer.h"
 
-// 模拟 bufferevent 的 Mock 类
-class MockBufferEvent {
+class EchoServerTest : public testing::Test {
 public:
-    MOCK_METHOD(void, Enable, (short));
-    // 还可以添加其他需要模拟的 bufferevent 方法
-};
-
-class EchoServerTest : public ::testing::Test {
-protected:
     static void SetUpTestSuite() {
-        // 创建 event_base 作为 base_
-        base_ = event_base_new();
-        EchoServer::SetBase(base_);
-
-        // 启动服务器线程
-        serverThread = std::thread([&]() {
-            server.Start();
-            server.RunLoop();
+        server = std::make_shared<EchoServer>();
+        serverThread = std::thread([&] {
+            server->Start();
+            server->RunLoop();
         });
-
-        // 等待服务器成功启动
-        while (!serverStarted) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
+        // Wait for the server to start
+        while (!serverStarted) {}
     }
 
     static void TearDownTestSuite() {
-        // 停止服务器
-        server.Stop();
-
-        // 等待服务器线程结束
+        server->Stop();
         serverThread.join();
-
-        // 释放 event_base 内存
-        event_base_free(base_);
     }
 
     void SetUp() override {
-        // 创建真实的 bufferevent
-        bev = bufferevent_socket_new(base_, -1, BEV_OPT_CLOSE_ON_FREE);
+        // Set up the connection to the server
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(9876);
+        inet_pton(AF_INET, "127.0.0.1", &sin.sin_addr);
 
-        // 设置 bufferevent
-        EchoServer::SetBufferEvent(bev);
+        base = event_base_new();
+        bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+        ASSERT_NE(bev, nullptr);
+
+        int res = bufferevent_socket_connect(bev, (struct sockaddr*)&sin, sizeof(sin));
+        ASSERT_EQ(res, 0);
     }
 
     void TearDown() override {
-        // 释放 bufferevent
-        if (bev != nullptr) {
-            std::cout << "mmd\n";
+        if (bev) {
             bufferevent_free(bev);
+            bev = nullptr;
+        }
+        if (base) {
+            event_base_free(base);
+            base = nullptr;
         }
     }
 
-    static event_base* base_;
-    static EchoServer server;
+protected:
+    static std::shared_ptr<EchoServer> server;
     static std::thread serverThread;
-    bufferevent* bev;
+    struct bufferevent* bev;
+    event_base* base;
 };
 
-event_base* EchoServerTest::base_ = nullptr;
-EchoServer EchoServerTest::server;
+std::shared_ptr<EchoServer> EchoServerTest::server = nullptr;
 std::thread EchoServerTest::serverThread;
 
 TEST_F(EchoServerTest, TestBevEventEOF) {
-    // 创建一个 MockBufferEvent
-    MockBufferEvent mockBufferEvent;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // 使用 ON_CALL 设置 Enable 函数的模拟行为
-    ON_CALL(mockBufferEvent, Enable(testing::_)).WillByDefault([&](short events) {
-        // 模拟服务器处理 bev_event_eof 事件
-        EchoServer::echo_event_cb(server.bev_, BEV_EVENT_EOF, nullptr);
-    });
+    EXPECT_NE(EchoServer::GetBufferEvent(), nullptr);
 
-    // 执行测试代码，这里不需要调用 EchoServer::echo_event_cb，因为已经在 ON_CALL 中模拟了
-    // EchoServer::echo_event_cb(bev, BEV_EVENT_EOF, nullptr);
+    // Simulate receiving EOF event from the server
+    EchoServer::echo_event_cb(EchoServer::GetBufferEvent().get(), BEV_EVENT_EOF, nullptr);
 
-    // 在这里添加您的断言，检查服务器对 bev_event_eof 事件的处理逻辑
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // 验证 bev 不为 nullptr，因为我们在 SetUp 函数中设置了有效的 bev
-    ASSERT_TRUE(server.bev_ !=nullptr);
+    EXPECT_EQ(EchoServer::GetBufferEvent().get(), nullptr);
 }
 
-// 添加更多测试用例根据需要
+// Add more tests as needed
 
 int main(int argc, char* argv[]) {
-    // 初始化 Google Test
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // 运行所有测试用例
-    int testResult = RUN_ALL_TESTS();
-
-    return testResult;
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
 

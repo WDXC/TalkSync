@@ -12,9 +12,10 @@
 #include <string.h>
 #include <sys/time.h>
 #include <thread>
+#include <memory>
 
-extern  std::atomic<bool> serverStarted;
-extern  std::atomic<bool> serverStopped;
+extern std::atomic<bool> serverStarted;
+extern std::atomic<bool> serverStopped;
 
 class EchoServer {
 public:
@@ -25,22 +26,20 @@ public:
   void RunLoop();
 
 public:
-  static void SetBase(event_base *base);
+  static void SetBase(event_base* base);
+  static event_base* GetBase();
+  static void cb(int sock, short what, void* arg);
+  static void SetBufferEvent(std::shared_ptr<bufferevent> bev);
+  static std::shared_ptr<bufferevent> GetBufferEvent();
 
-  static void cb(int sock, short what, void *arg);
+  static void accept_conn_cb(struct evconnlistener* listener, evutil_socket_t fd, struct sockaddr* address, int socklen, void* ctx);
+  static void accept_error_cb(struct evconnlistener* listener, void* ctx);
 
-  static void SetBufferEvent(bufferevent* bev);
-
-  static void accept_conn_cb(struct evconnlistener *listener,
-                             evutil_socket_t fd, struct sockaddr *address,
-                             int socklen, void *ctx);
-  static void accept_error_cb(struct evconnlistener *listener, void *ctx);
-
-  static void echo_read_cb(struct bufferevent *bev, void *ctx);
-  static void echo_event_cb(struct bufferevent *bev, short events, void *ctx);
+  static void echo_read_cb(struct bufferevent* bev, void* ctx);
+  static void echo_event_cb(struct bufferevent* bev, short events, void* ctx);
 
 public:
-  static bufferevent* bev_;
+  static std::shared_ptr<bufferevent> bev_;
   static event_base *base_;
 
 
