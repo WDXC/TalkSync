@@ -1,32 +1,29 @@
 #include "EchoServer.h"
-#include <arpa/inet.h>
-#include <atomic>
-#include <event2/buffer.h>
-#include <event2/thread.h>
-#include <iostream>
-#include <string.h>
-#include <sys/time.h>
-#include <thread>
+#include <memory>
+#include <event2/bufferevent.h>
 
 std::atomic<bool> serverStarted(false);
 std::atomic<bool> serverStopped(false);
 
-bufferevent *EchoServer::bev_;
-event_base *EchoServer::base_;
+bufferevent* EchoServer::bev_ = nullptr;
+event_base *EchoServer::base_ = nullptr;
 event* EchoServer::watchdog_event_;
+
 
 void EchoServer::cb(int sock, short what, void *arg) {
   if (serverStopped) {
-    bufferevent_disable(bev_, EV_WRITE | EV_READ);
-    bufferevent_free(bev_);
     event_base_loopbreak(base_);
     event_free(watchdog_event_);
-    bev_ = nullptr;
     std::cout << "end base\n";
   } else {
     std::cout << "end failed\n";
   }
 }
+
+void EchoServer::SetBufferEvent(bufferevent* bev) {
+    bev_ = bev;
+}
+
 
 EchoServer::EchoServer() {}
 
@@ -34,6 +31,11 @@ EchoServer::~EchoServer() {
   listener_ = nullptr;
   base_ = nullptr;
   bev_ = nullptr;
+}
+
+
+void EchoServer::SetBase(event_base* base) {
+    base_ = base;
 }
 
 void EchoServer::RunLoop() { event_base_dispatch(base_); }
@@ -57,7 +59,7 @@ void EchoServer::Start() {
   listener_ = evconnlistener_new_bind(base_, accept_conn_cb, nullptr,
                                       LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
                                       -1, (struct sockaddr *)&sin, sizeof(sin));
-  struct timeval five_seconds = {2, 0};
+  struct timeval five_seconds = {1, 0};
   watchdog_event_ = event_new(base_, -1, EV_PERSIST, cb, base_);
 
   event_add(watchdog_event_, &five_seconds);
@@ -96,26 +98,15 @@ void EchoServer::echo_read_cb(struct bufferevent *bev, void *ctx) {
 void EchoServer::echo_event_cb(struct bufferevent *bev, short events,
                                void *ctx) {
 
-  std::cout << __FUNCTION__ << " you enter this function\n";
-  if (events == BEV_EVENT_TIMEOUT) {
-    std::cout << __FUNCTION__ << " you enter this function\n";
-  }
-  if (events == BEV_EVENT_CONNECTED) {
-    std::cout << __FUNCTION__ << " you enter this function\n";
-  }
-  if (events & BEV_EVENT_CONNECTED) {
-    std::cout << "Client connected." << std::endl;
-  }
   if (events & BEV_EVENT_ERROR) {
-    perror("Error from bufferevent");
+      std::cout << "eof event\n";
+      bev_ = nullptr;
+      return;
   }
   if (events & BEV_EVENT_EOF) {
     event_base *tmp_base = bufferevent_get_base(bev);
     event_base_loopbreak(tmp_base);
-    bufferevent_free(bev);
-  }
-  if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
-    bufferevent_free(bev);
+    return;
   }
 }
 
