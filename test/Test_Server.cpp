@@ -22,7 +22,6 @@ public:
 
   }
   static void TearDownTestSuite() {
-    std::this_thread::sleep_for(std::chrono::seconds(2));
     server->Stop();
     cli->Disconnect();
     if (clientThread.joinable()) {

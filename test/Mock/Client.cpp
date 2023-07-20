@@ -37,7 +37,7 @@ bool Client::Connect(const std::string &serverAddress, int port) {
     sin.sin_port = htons(port);
     sin.sin_addr.s_addr = inet_addr(serverAddress.c_str());
 
-    timeval ct{0, 1000};
+    timeval ct{0, 100};
     watchdog_ = event_new(base_, bufferevent_getfd(bev_), EV_PERSIST, watchdog_cb, nullptr);
     event_add(watchdog_, &ct);
 
