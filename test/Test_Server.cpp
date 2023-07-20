@@ -1,21 +1,61 @@
-#include <gmock/gmock.h>
-#include "ClientInterface.h"
+#include "HttpServer.h"
+#include "gtest/gtest.h"
+#include <Client.h>
+#include <chrono>
+#include <memory>
+#include <thread>
 
-using namespace testing;
+using testing::InitGoogleTest;
+using testing::Test;
 
-class MockClient : public ClientInterface {
+class HttpServerTest : public Test {
 public:
-    MOCK_METHOD(bool, Connect, (const std::string& serverAddress, int port), (override));
-    MOCK_METHOD(void, Disconnect, (), (override));
-    MOCK_METHOD(bool, SendData, (const std::string& data), (override));
+  static void SetUpTestSuite() {
+    server = std::make_shared<HttpServer>();
+    serverThread = std::thread([&]() { server->Start(); });
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    if (serverThread.joinable()) {
+      printf("the server thread is started\n");
+      cli = std::make_shared<Client>();
+      clientThread = std::thread([&]() { cli->Connect("127.0.0.1", 9876); });
+    }
+
+    if (clientThread.joinable()) {
+      printf("the client thread is started\n");
+    }
+  }
+  static void TearDownTestSuite() {
+    cli->Disconnect();
+    if (clientThread.joinable()) {
+      clientThread.join();
+    }
+    server->Stop();
+    if (serverThread.joinable()) {
+      serverThread.join();
+    }
+  }
+
+protected:
+  static std::shared_ptr<HttpServer> server;
+  static std::shared_ptr<Client> cli;
+  static std::thread serverThread;
+  static std::thread clientThread;
 };
 
-TEST(MyClientTest, SendDataSuccessfully) {
-    MockClient mockClient;
-    EXPECT_CALL(mockClient, Connect("server_address", 1234)).WillOnce(Return(true));
-    EXPECT_CALL(mockClient, SendData("test_data")).WillOnce(Return(true));
-    EXPECT_CALL(mockClient, Disconnect());
+std::shared_ptr<HttpServer> HttpServerTest::server;
+std::shared_ptr<Client> HttpServerTest::cli;
+std::thread HttpServerTest::serverThread;
+std::thread HttpServerTest::clientThread;
 
-    // 在这里写测试代码，调用连接服务器和发送数据的函数，并验证其行为是否符合期望
+TEST_F(HttpServerTest, TestBevEventEOF) {
+  cli->SendData("Hello");
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  EXPECT_STREQ("Hello", Client::GetMsg());
 }
 
+int main(int argc, char **argv) {
+  InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+  //    HttpServer ser;
+  //    ser.Start();
+}

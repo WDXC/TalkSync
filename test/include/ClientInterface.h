@@ -8,6 +8,7 @@ public:
     virtual bool Connect(const std::string& serverAddress, int port) = 0;
     virtual void Disconnect() = 0;
     virtual bool SendData(const std::string& data) = 0;
+    virtual std::string GetMsg() = 0;
 };
 
 #endif
