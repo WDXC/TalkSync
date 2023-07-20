@@ -61,6 +61,7 @@ set_target_properties(${MAKEKEY} PROPERTIES
 
 # add header file
 include_directories(include/Http
+                    test/include
                     ${LIBEVENT_ROOT}/include
                     ${LOGDESIGN_ROOT}/include
                     ${GOOGLETEST_ROOT}/googletest/incldue
@@ -72,7 +73,9 @@ file(GLOB_RECURSE MAIN "${CMAKE_SOURCE_DIR}/src/*.cpp")
 
 add_library(${TALKSYNC} SHARED ${MAIN})
 
-add_executable(${TEST_SERVER} ${MAIN} ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Server.cpp)
+add_executable(${TEST_SERVER} ${MAIN}
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/Test_Server.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/Mock/Client.cpp)
 
 
 # linker
