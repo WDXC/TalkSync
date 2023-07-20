@@ -13,23 +13,21 @@ public:
   static void SetUpTestSuite() {
     server = std::make_shared<HttpServer>();
     serverThread = std::thread([&]() { server->Start(); });
-    std::this_thread::sleep_for(std::chrono::seconds(1));
     if (serverThread.joinable()) {
-      printf("the server thread is started\n");
       cli = std::make_shared<Client>();
       clientThread = std::thread([&]() { cli->Connect("127.0.0.1", 9876); });
+      std::unique_lock<std::mutex> lock(Client::bevMutex_);
+      Client::clientStarted_.wait(lock);
     }
 
-    if (clientThread.joinable()) {
-      printf("the client thread is started\n");
-    }
   }
   static void TearDownTestSuite() {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    server->Stop();
     cli->Disconnect();
     if (clientThread.joinable()) {
       clientThread.join();
     }
-    server->Stop();
     if (serverThread.joinable()) {
       serverThread.join();
     }

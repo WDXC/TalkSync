@@ -24,15 +24,18 @@ public:
 private:
   static void event_cb(bufferevent *bev, short event, void *arg);
   static void read_cb(bufferevent *bev, void *ctx);
+  static void watchdog_cb(int fd, short events, void* arg);
 
 public:
   static std::string msg;
   static struct event_base *base_;
   static bufferevent *bev_;
 
-private:
   static std::mutex bevMutex_;
   static std::condition_variable clientStarted_;
+
+  static event* watchdog_;
+  static bool flag_;
 };
 
 #endif

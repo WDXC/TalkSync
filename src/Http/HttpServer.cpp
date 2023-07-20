@@ -6,10 +6,7 @@
 #include <string>
 #include <sys/time.h>
 
-int HttpServer::flags_ = 0;
-
 struct event_base *HttpServer::base_;
-struct event *HttpServer::watchdog_;
 
 HttpServer::HttpServer() : listener_(nullptr) {}
 
@@ -44,10 +41,6 @@ void HttpServer::Start() {
     return;
   }
 
-  timeval dt{2, 0};
-  watchdog_ = event_new(base_, -1, EV_PERSIST, watchdog_cb, base_);
-  event_add(watchdog_, &dt);
-
   evconnlistener_set_error_cb(listener_, accept_error_cb);
 
   event_base_dispatch(base_);
@@ -58,7 +51,6 @@ void HttpServer::Stop() {
     evconnlistener_free(listener_);
     listener_ = nullptr; // Reset the pointer to avoid double-free
   }
-  flags_ = 1;
 }
 
 void HttpServer::accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
@@ -69,13 +61,6 @@ void HttpServer::accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
   bufferevent_enable(bev, EV_READ | EV_WRITE);
 }
 
-void HttpServer::watchdog_cb(int fd, short, void *ctx) {
-  if (flags_) {
-    event_base_loopbreak(base_);
-    event_free(watchdog_);
-  }
-  return;
-}
 
 void HttpServer::event_cb(bufferevent *bev, short events, void *arg) {
   if (events & BEV_EVENT_ERROR) {
@@ -88,9 +73,10 @@ void HttpServer::event_cb(bufferevent *bev, short events, void *arg) {
   }
   if (events & BEV_EVENT_EOF) {
     printf("evnt eof\n");
+    bufferevent_disable(bev, EV_READ | EV_WRITE);
+    bufferevent_free(bev);
     event_base *tmp_base = bufferevent_get_base(bev);
     event_base_loopbreak(tmp_base);
-    bufferevent_free(bev);
     return;
   }
 }

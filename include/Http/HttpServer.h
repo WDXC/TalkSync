@@ -26,14 +26,9 @@ private:
                         struct sockaddr *address, int socklen, void *ctx);
   static void event_cb(bufferevent *bev, short events, void *arg);
   static void read_cb(bufferevent *bev, void *ctx);
-  static void watchdog_cb(int fd, short events, void *ctx);
   static void accept_error_cb(struct evconnlistener *listener, void *ctx);
 
 private:
-  static int flags_;
-
-  static event *watchdog_;
-
   static struct event_base *base_;
 
 private:
