@@ -4,7 +4,6 @@
 #include <memory>
 #include <string.h>
 #include <string>
-#include <sys/time.h>
 
 struct event_base *HttpServer::base_;
 

@@ -1,5 +1,6 @@
 #include <Client.h>
 #include <arpa/inet.h>
+#include <event2/thread.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -16,6 +17,7 @@ Client::Client() {}
 Client::~Client() {}
 
 bool Client::Connect(const std::string &serverAddress, int port) {
+  evthread_use_pthreads();
   base_ = event_base_new();
   if (!base_) {
     perror("event_base_new()");
@@ -38,7 +40,8 @@ bool Client::Connect(const std::string &serverAddress, int port) {
     sin.sin_addr.s_addr = inet_addr(serverAddress.c_str());
 
     timeval ct{0, 100};
-    watchdog_ = event_new(base_, bufferevent_getfd(bev_), EV_PERSIST, watchdog_cb, nullptr);
+    watchdog_ = event_new(base_, bufferevent_getfd(bev_), EV_PERSIST,
+                          watchdog_cb, nullptr);
     event_add(watchdog_, &ct);
 
     bufferevent_setcb(bev_, read_cb, nullptr, event_cb, nullptr);
