@@ -13,6 +13,7 @@ public:
   static void SetUpTestSuite() {
     server = std::make_shared<HttpServer>();
     serverThread = std::thread([&]() { server->Start(); });
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     if (serverThread.joinable()) {
       cli = std::make_shared<Client>();
       clientThread = std::thread([&]() { cli->Connect("127.0.0.1", 9876); });
