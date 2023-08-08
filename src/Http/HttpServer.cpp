@@ -1,5 +1,8 @@
 #include "HttpServer.h"
+#include "event2/bufferevent.h"
+#include "event2/event.h"
 
+#include <bits/types/struct_timeval.h>
 #include <event2/thread.h>
 #include <memory>
 #include <string.h>
@@ -7,12 +10,23 @@
 
 struct event_base *HttpServer::base_;
 
+// 自定义删除器函数
+void customDeleter(event* ptr) {
+    event_free(ptr);
+}
+
 HttpServer::HttpServer() : listener_(nullptr) {}
 
 HttpServer::~HttpServer() {
   if (base_) {
     event_base_free(base_);
   }
+}
+
+void HttpServer::watchdog(evutil_socket_t fd, short event, void* ctx) {
+    if (!base_) {
+        event_base_loopbreak(base_);
+    }
 }
 
 void HttpServer::Start() {
@@ -40,6 +54,13 @@ void HttpServer::Start() {
     return;
   }
 
+  timeval ct {8, 0};
+  // 使用带有自定义删除器的 std::shared_ptr 构造函数
+  m_closetimer = std::shared_ptr<event>(event_new(base_, -1, EV_PERSIST, watchdog, nullptr), customDeleter);
+
+//  m_closetimer = std::shared_ptr<event>(event_new(base_, -1, EV_PERSIST, watchdog, nullptr));
+  event_add(m_closetimer.get(), &ct);
+  
   evconnlistener_set_error_cb(listener_, accept_error_cb);
 
   event_base_dispatch(base_);

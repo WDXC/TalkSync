@@ -27,11 +27,13 @@ private:
   static void event_cb(bufferevent *bev, short events, void *arg);
   static void read_cb(bufferevent *bev, void *ctx);
   static void accept_error_cb(struct evconnlistener *listener, void *ctx);
+  static void watchdog(evutil_socket_t fd, short event, void* ctx);
 private:
   static struct event_base *base_;
 
 private:
   struct evconnlistener *listener_;
+  std::shared_ptr<event> m_closetimer;
 };
 
 #endif
