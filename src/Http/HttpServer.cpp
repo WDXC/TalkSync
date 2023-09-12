@@ -1,16 +1,37 @@
 #include "HttpServer.h"
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include <event2/keyvalq_struct.h>
 #include <bits/types/struct_timeval.h>
 #include <event2/thread.h>
 #include <memory>
 #include <cstring>
+#include <sys/stat.h>
 
 struct event_base *HttpServer::base_;
 
 // customize deleter
 void customDeleter(event* ptr) {
     event_free(ptr);
+}
+
+static const char* guess_content_type(const char* path)
+{
+    const char* last_period, *extension;
+    const struct table_entry* ent;
+    last_period = strrchr(last_period, '/');
+    if (!last_period || strchr(last_period, '/'))
+        goto not_found;
+    extension = last_period + 1;
+    for (ent = &content_type_table[0]; ent->extension; ++ent) {
+        if (evutil_ascii_strcasecmp(ent->extension, extension))
+            return ent->content_type;
+    }
+not_found:
+    return "application/misc";
 }
 
 HttpServer::HttpServer() : listener_(nullptr) {}
@@ -175,7 +196,7 @@ void HttpServer::dump_request_cb(struct evhttp_request *req, void *arg) {
 
 void HttpServer::send_document_cb(struct evhttp_request *req, void *arg) {
     struct evbuffer* evb = NULL;
-    struct options* o = arg;
+    struct options* o = (options*)arg;
     const char* uri = evhttp_request_get_uri(req);
     struct evhttp_uri* decoded = NULL;
     const char* path;
@@ -212,9 +233,77 @@ void HttpServer::send_document_cb(struct evhttp_request *req, void *arg) {
         goto err;
 
     len = strlen(decoded_path) + strlen(o->docroot) + 2;
-    if (!(whole_path = malloc(len))) {
+    if (!(whole_path = (char*)malloc(len))) {
         perror("malloc");
         goto err;
     }
+    evutil_snprintf(whole_path, len, "%s/%s", o->docroot, decoded_path);
+
+    if (stat(whole_path, &st) < 0) {
+        goto err;
+    }
+
+    evb = evbuffer_new();
+
+    if (S_ISDIR(st.st_mode)) {
+        DIR* d;
+        struct dirent* ent;
+        const char* trailing_slash = "";
+        if (!strlen(path) || path[strlen(path)-1] != '/')
+            trailing_slash = "/";
+
+        evbuffer_add_printf(evb,
+                "<!DOCTYPE html>\n"
+                "<html>\n <head>\n"
+                "  <meta charset='utf-8'>\n"
+                "<title>%s</title>\n"
+                "<base href='%s%s'>\n"
+                "</head>\n"
+                "<body>\n"
+                "<h1>%s</h1>\n"
+                "<ul>\n",
+                decoded_path,
+                path,
+                trailing_slash,
+                decoded_path);
+        while ((ent = readdir(d))) {
+            const char* name = ent->d_name;
+            evbuffer_add_printf(evb,
+                    "<li><a href=\"%s\">%s</a>\n",
+                    name, name);
+        }
+        evbuffer_add_printf(evb, "</ul></body></html>\n");
+        closedir(d);
+        evhttp_add_header(evhttp_request_get_output_headers(req),
+                "Content-Type", "text/html");
+    } else {
+        const char* type = guess_content_type(decoded_path);
+        if ((fd = open(whole_path, O_RDONLY)) < 0) {
+            perror("open");
+            goto err;
+        }
+        if (fstat(fd, &st) < 0) {
+            perror("fstat");
+            goto err;
+        }
+
+        evhttp_add_header(evhttp_request_get_output_headers(req),
+                "Content-Type", type);
+        evbuffer_add_file(evb, fd, 0, st.st_size);
+    }
+    evhttp_send_reply(req, 200, "OK", evb);
 err:
+    evhttp_send_error(req, HTTP_NOTFOUND, NULL);
+    if (fd >= 0) 
+        close(fd);
+done:
+    if (decoded)
+        evhttp_uri_free(decoded);
+    if (decoded_path)
+        free(decoded_path);
+    if (whole_path)
+        free(whole_path);
+    if (evb)
+        evbuffer_free(evb);
 }
+
