@@ -28,6 +28,8 @@ private:
   static void read_cb(bufferevent *bev, void *ctx);
   static void accept_error_cb(struct evconnlistener *listener, void *ctx);
   static void watchdog(evutil_socket_t fd, short event, void* ctx);
+  static void dump_request_cb(struct evhttp_request* req, void* arg);
+  static void send_document_cb(struct evhttp_request* req, void* arg);
 private:
   static struct event_base *base_;
 

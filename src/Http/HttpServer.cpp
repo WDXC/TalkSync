@@ -1,16 +1,14 @@
 #include "HttpServer.h"
-#include "event2/bufferevent.h"
-#include "event2/event.h"
-
+#include <stdlib.h>
+#include <event2/keyvalq_struct.h>
 #include <bits/types/struct_timeval.h>
 #include <event2/thread.h>
 #include <memory>
-#include <string.h>
-#include <string>
+#include <cstring>
 
 struct event_base *HttpServer::base_;
 
-// 自定义删除器函数
+// customize deleter
 void customDeleter(event* ptr) {
     event_free(ptr);
 }
@@ -121,4 +119,102 @@ void HttpServer::accept_error_cb(struct evconnlistener *listener, void *ctx) {
   fprintf(stderr, "Got an error %d (%s) on the listener. Shutting down.\n", err,
           evutil_socket_error_to_string(err));
   event_base_loopexit(base, nullptr);
+}
+
+void HttpServer::dump_request_cb(struct evhttp_request *req, void *arg) {
+    const char* cmdtype;
+    struct evkeyvalq* headers;
+    struct evkeyval* header;
+    struct evbuffer* buf;
+
+    switch (evhttp_request_get_command(req)) {
+        case EVHTTP_REQ_GET: cmdtype = "GET";
+            break;
+        case EVHTTP_REQ_POST: cmdtype = "POST";
+            break;
+        case EVHTTP_REQ_HEAD: cmdtype = "HEAD";
+            break;
+        case EVHTTP_REQ_PUT: cmdtype = "PUT";
+            break;
+        case EVHTTP_REQ_DELETE: cmdtype = "DELETE";
+            break;
+        case EVHTTP_REQ_OPTIONS: cmdtype = "OPTIONS";
+            break;
+        case EVHTTP_REQ_TRACE: cmdtype = "TRACE";
+            break;
+        case EVHTTP_REQ_CONNECT: cmdtype = "CONNECT";
+            break;
+        case EVHTTP_REQ_PATCH: cmdtype = "PATCH";
+            break;
+        default: cmdtype = "unknown";
+            break;
+    }
+
+    printf("Received a %s request for %s\nHeaders:\n",
+           cmdtype, evhttp_request_get_uri(req));
+
+    headers = evhttp_request_get_input_headers(req);
+    for (header = headers->tqh_first; header;
+        header = header->next.tqe_next) {
+        printf(" %s: %s\n", header->key, header->value);
+    }
+
+    buf = evhttp_request_get_input_buffer(req);
+    puts("Input data: <<<");
+    while (evbuffer_get_length(buf)) {
+        int n;
+        char cbuf[128];
+        n = evbuffer_remove(buf, cbuf, sizeof(cbuf));
+        if (n > 0)
+            (void) fwrite(cbuf, 1, n, stdout);
+    }
+    puts(">>>");
+
+    evhttp_send_reply(req, 200, "OK", NULL);
+}
+
+void HttpServer::send_document_cb(struct evhttp_request *req, void *arg) {
+    struct evbuffer* evb = NULL;
+    struct options* o = arg;
+    const char* uri = evhttp_request_get_uri(req);
+    struct evhttp_uri* decoded = NULL;
+    const char* path;
+    char* decoded_path;
+    char* whole_path = NULL;
+    size_t len;
+    int fd = -1;
+    struct stat st;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        dump_request_cb(req, arg);
+        return;
+    }
+
+    printf("Got a GET Request for <%s>\n", uri);
+
+    /* Decode the URI*/
+    decoded = evhttp_uri_parse(uri);
+    if (!decoded) {
+        printf("It is not a good URI. Sending BADREQUEST\n");
+        evhttp_send_error(req, HTTP_BADREQUEST, 0);
+        return;
+    }
+
+    /* Let's see what path the user asked for */
+    path = evhttp_uri_get_path(decoded);
+    if (!path) path = "/";
+
+    /* We need to decode it, to see what path the user really wanted. */
+    decoded_path = evhttp_uridecode(path, 0, NULL);
+    if (decoded_path == NULL)
+        goto err;
+    if (strstr(decoded_path, ".."))
+        goto err;
+
+    len = strlen(decoded_path) + strlen(o->docroot) + 2;
+    if (!(whole_path = malloc(len))) {
+        perror("malloc");
+        goto err;
+    }
+err:
 }

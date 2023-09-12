@@ -31,9 +31,9 @@ struct options {
     int max_body_size;
 
     int unlink;
-    const char* unixsock;
-    const char* bind;
-    const char* docroot;
+    const char *unixsock;
+    const char *bind;
+    const char *docroot;
 };
 
 #endif
