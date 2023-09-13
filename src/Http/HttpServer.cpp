@@ -73,6 +73,19 @@ void HttpServer::Start() {
     return;
   }
 
+  struct evhttp* http = NULL;
+  setbuf(stdout, NULL);
+  setbuf(stderr, NULL);
+
+  http = evhttp_new(base_);
+  if (!http) {
+      fprintf(stderr, "couldn't create evhttp. Exiting.\n");
+  }
+
+  evhttp_set_cb(http, "/dump", dump_request_cb, NULL);
+
+  evhttp_set_gencb(http, send_document_cb, nullptr);
+
   timeval ct {8, 0};
   // 使用带有自定义删除器的 std::shared_ptr 构造函数
   m_closetimer = std::shared_ptr<event>(event_new(base_, -1, EV_PERSIST, watchdog, nullptr), customDeleter);
