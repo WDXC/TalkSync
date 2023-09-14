@@ -43,9 +43,10 @@ HttpServer::~HttpServer() {
 }
 
 void HttpServer::watchdog(evutil_socket_t fd, short event, void* ctx) {
-    if (!base_) {
-        event_base_loopbreak(base_);
-    }
+//    if (!base_) {
+//        event_base_loopbreak(base_);
+//    }
+    return;
 }
 
 void HttpServer::Start() {
@@ -86,6 +87,7 @@ void HttpServer::Start() {
 
   evhttp_set_gencb(http, send_document_cb, nullptr);
 
+
   timeval ct {8, 0};
   // 使用带有自定义删除器的 std::shared_ptr 构造函数
   m_closetimer = std::shared_ptr<event>(event_new(base_, -1, EV_PERSIST, watchdog, nullptr), customDeleter);
@@ -123,14 +125,14 @@ void HttpServer::event_cb(bufferevent *bev, short events, void *arg) {
 
     return;
   }
-  if (events & BEV_EVENT_EOF) {
-    printf("evnt eof\n");
-    bufferevent_disable(bev, EV_READ | EV_WRITE);
-    bufferevent_free(bev);
-    event_base *tmp_base = bufferevent_get_base(bev);
-    event_base_loopbreak(tmp_base);
-    return;
-  }
+ // if (events & BEV_EVENT_EOF) {
+ //   printf("evnt eof\n");
+ //   bufferevent_disable(bev, EV_READ | EV_WRITE);
+ //   bufferevent_free(bev);
+ //   event_base *tmp_base = bufferevent_get_base(bev);
+ //   event_base_loopbreak(tmp_base);
+ //   return;
+ // }
 }
 
 void HttpServer::read_cb(bufferevent *bev, void *ctx) {
@@ -208,6 +210,9 @@ void HttpServer::dump_request_cb(struct evhttp_request *req, void *arg) {
 }
 
 void HttpServer::send_document_cb(struct evhttp_request *req, void *arg) {
+    const char* up = evhttp_request_get_uri(req);
+    printf("Received a GET Request for URI: %s\n", up);
+
     struct evbuffer* evb = NULL;
     struct options* o = (options*)arg;
     const char* uri = evhttp_request_get_uri(req);
@@ -319,4 +324,3 @@ done:
     if (evb)
         evbuffer_free(evb);
 }
-
