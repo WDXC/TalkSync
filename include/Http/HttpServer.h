@@ -1,41 +1,28 @@
-#ifndef _HTTPSERVER_H_
-#define _HTTPSERVER_H_
+#ifndef HTTP_SERVER_H
+#define HTTP_SERVER_H
 
-#include "HttpStruct.h"
-#include <arpa/inet.h>
-#include <condition_variable>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
 #include <event2/event.h>
 #include <event2/http.h>
-#include <event2/listener.h>
-#include <event2/util.h>
-#include <memory>
-#include <mutex>
+#include <unordered_map>
 
 class HttpServer {
 public:
-  HttpServer();
-  ~HttpServer();
-  void Start();
-  void Stop();
-  bool IsStarted();
+    HttpServer();
+    ~HttpServer();
+    bool Init(int port);
+    void Start();
 
 private:
-  static void accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
-                        struct sockaddr *address, int socklen, void *ctx);
-  static void event_cb(bufferevent *bev, short events, void *arg);
-  static void read_cb(bufferevent *bev, void *ctx);
-  static void accept_error_cb(struct evconnlistener *listener, void *ctx);
-  static void watchdog(evutil_socket_t fd, short event, void* ctx);
-  static void dump_request_cb(struct evhttp_request* req, void* arg);
-  static void send_document_cb(struct evhttp_request* req, void* arg);
-private:
-  static struct event_base *base_;
+    static void RequestHandler(struct evhttp_request* req, void* arg);
+    static void SendResponse(struct evhttp_request* req, const std::string& response);
+    static void LoginHandler(struct evhttp_request* req, void* arg);
 
-private:
-  struct evconnlistener *listener_;
-  std::shared_ptr<event> m_closetimer;
+    // 添加用户会话管理的成员变量和方法
+    std::unordered_map<std::string, std::string> user_sessions_;
+
+    struct event_base* base_;
+    struct evhttp* http_server_;
 };
 
-#endif
+#endif // HTTP_SERVER_H
+

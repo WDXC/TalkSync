@@ -174,5 +174,6 @@
 //}
 int main(int argc, char** argv) {
     HttpServer* test = new HttpServer();
+    test->Init(7890);
     test->Start();
 }

@@ -12,6 +12,7 @@ set(LOGDESIGN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/Log_Design)
 set(LIBEVENT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libevent)
 set(GOOGLETEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/googletest)
 set(ENCFS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/Encfs)
+set(SQLITE_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SQLiteCpp)
 set(LOGDESIGN "Log_Design_Test")
 set(ENCFS_MAIN "encfs_main")
 set(ENCFSCTL "encfsctl")
@@ -59,13 +60,19 @@ set_target_properties(${MAKEKEY} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Encfs_output"
 )
 
+#SQLiteCpp
+add_subdirectory(${SQLITE_ROOT})
+
 # add header file
 include_directories(include/Http
+                    include/Login
                     test/include
                     ${LIBEVENT_ROOT}/include
                     ${LOGDESIGN_ROOT}/include
                     ${GOOGLETEST_ROOT}/googletest/incldue
                     ${GOOGLETEST_ROOT}/googlemock/include
+                    ${SQLITE_ROOT}/include/SQLiteCpp
+                    ${SQLITE_ROOT}/sqlite3
                     )
 
 
@@ -89,4 +96,5 @@ target_link_libraries(${TEST_SERVER}
                       gtest
                       encfs
                       pthread
+                      SQLiteCpp
 )
