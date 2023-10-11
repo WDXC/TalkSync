@@ -92,7 +92,7 @@ void HttpServer::LoginHandler(struct evhttp_request* req, void* arg) {
     // 这里根据实际的请求格式从 request_string 中提取用户名和密码
 
     // 使用登录模块进行身份验证
-    LoginModuleImpl login_module;
+    LoginModuleImpl login_module("/home/neil/mine/Project/C++/TalkSync/db/mydatabase.db");
     if (login_module.AuthenticateUser(username, password)) {
         // 生成登录成功响应
         std::string session_id = login_module.GenerateSessionId();

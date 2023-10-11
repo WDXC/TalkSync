@@ -71,7 +71,7 @@ include_directories(include/Http
                     ${LOGDESIGN_ROOT}/include
                     ${GOOGLETEST_ROOT}/googletest/incldue
                     ${GOOGLETEST_ROOT}/googlemock/include
-                    ${SQLITE_ROOT}/include/SQLiteCpp
+                    ${SQLITE_ROOT}/include
                     ${SQLITE_ROOT}/sqlite3
                     )
 

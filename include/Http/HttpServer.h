@@ -3,6 +3,7 @@
 
 #include <event2/event.h>
 #include <event2/http.h>
+#include <string>
 #include <unordered_map>
 
 class HttpServer {
